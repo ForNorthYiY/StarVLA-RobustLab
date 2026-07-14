@@ -1,0 +1,11 @@
+third_party/starVLA/
+.venv/
+__pycache__/
+.pytest_cache/
+*.py[cod]
+data/
+checkpoints/
+runs/
+results/
+wandb/
+
