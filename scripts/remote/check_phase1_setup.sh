@@ -32,7 +32,11 @@ for path in \
   "${BASE_DIR}/model-00002-of-00002.safetensors"; do
   if [[ -f "${path}" ]]; then
     size=$(stat -c '%s' "${path}")
-    printf 'present bytes=%s %s\n' "${size}" "${path}"
+    if [[ -f "${path}.aria2" ]]; then
+      printf 'incomplete bytes=%s control=%s.aria2 %s\n' "${size}" "${path}" "${path}"
+    else
+      printf 'complete bytes=%s %s\n' "${size}" "${path}"
+    fi
   else
     printf 'missing %s\n' "${path}"
   fi
