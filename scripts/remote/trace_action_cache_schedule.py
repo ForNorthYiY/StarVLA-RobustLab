@@ -29,15 +29,19 @@ class FakeWebsocketPolicy:
 def main() -> None:
     os.environ["STARVLA_TRACE_ACTION_CACHE"] = "1"
     interface.WebsocketClientPolicy = FakeWebsocketPolicy
-    client = interface.ModelClient(host="fake", port=0, unnorm_key="franka")
-    client.reset("trace chunk scheduling")
     example = {
         "image": [np.zeros((224, 224, 3), dtype=np.uint8)] * 2,
         "lang": "trace chunk scheduling",
     }
-    for step in range(10):
-        client.step(example, step=step)
-    print(f"inference_calls={FakeWebsocketPolicy.inference_calls}")
+    for interval in (1, 2, 4, 8):
+        FakeWebsocketPolicy.inference_calls = 0
+        client = interface.ModelClient(
+            host="fake", port=0, unnorm_key="franka", replan_interval=interval
+        )
+        client.reset("trace chunk scheduling")
+        for step in range(10):
+            client.step(example, step=step)
+        print(f"interval={interval} stats={client.get_runtime_stats()}")
 
 
 if __name__ == "__main__":

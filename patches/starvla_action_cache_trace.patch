@@ -30,43 +30,131 @@ index 21d45f3..908d0d0 100644
 +                ),
 +            )
          return {"actions": unnorm}
+diff --git a/examples/LIBERO/eval_files/eval_libero.py b/examples/LIBERO/eval_files/eval_libero.py
+index f49aef9..8577d25 100644
+--- a/examples/LIBERO/eval_files/eval_libero.py
++++ b/examples/LIBERO/eval_files/eval_libero.py
+@@ -41,6 +41,7 @@ class Args:
+     num_steps_wait: int = 10  # Number of steps to wait for objects to stabilize i n sim
+     num_trials_per_task: int = 50  # Number of rollouts per task
+     max_tasks: int = -1  # If > 0, limit the number of tasks evaluated (smoke / quick check). -1 = run all.
++    replan_interval: int = 0  # 0 = execute the full server action chunk; otherwise replan every N policy steps.
+ 
+     #################################################################################################################
+     # Utils
+@@ -92,6 +93,7 @@ def eval_libero(args: Args) -> None:
+         host=args.host,
+         port=args.port,
+         unnorm_key=args.unnorm_key,
++        replan_interval=args.replan_interval or None,
+     )
+ 
+     # Optional smoke-test cap (still useful for quick verification with -1 = full run).
+@@ -227,6 +229,7 @@ def eval_libero(args: Args) -> None:
+             # print(pathlib.Path(args.video_out_path) / f"rollout_{task_segment}_episode{episode_idx}_{suffix}.mp4")
+             # Log current results
+             logging.info(f"Success: {done}")
++            logging.info("Runtime stats: %s", json.dumps(client_model.get_runtime_stats(), sort_keys=True))
+             logging.info(f"# episodes completed so far: {total_episodes}")
+             logging.info(f"# successes: {total_successes} ({total_successes / total_episodes * 100:.1f}%)")
+ 
 diff --git a/examples/LIBERO/eval_files/model2libero_interface.py b/examples/LIBERO/eval_files/model2libero_interface.py
-index ce7d93e..e490019 100644
+index ce7d93e..d150ed7 100644
 --- a/examples/LIBERO/eval_files/model2libero_interface.py
 +++ b/examples/LIBERO/eval_files/model2libero_interface.py
-@@ -15,6 +15,8 @@ ensembling, gripper sticky logic, and chunk-cache scheduling.
+@@ -15,6 +15,9 @@ ensembling, gripper sticky logic, and chunk-cache scheduling.
  """
  
  from collections import deque
 +import json
 +import os
++import time
  from typing import Optional, Sequence
  
  import matplotlib.pyplot as plt
-@@ -82,6 +84,11 @@ class ModelClient:
+@@ -39,11 +42,18 @@ class ModelClient:
+         host: str = "0.0.0.0",
+         port: int = 10095,
+         image_size: Sequence[int] = (224, 224),
++        replan_interval: Optional[int] = None,
+     ) -> None:
+         # Connect & receive handshake metadata (action_chunk_size, etc.)
+         self.client = WebsocketClientPolicy(host, port)
+         meta = self.client.get_server_metadata()
+         self.action_chunk_size = int(meta["action_chunk_size"])
++        self.replan_interval = int(replan_interval or self.action_chunk_size)
++        if not 1 <= self.replan_interval <= self.action_chunk_size:
++            raise ValueError(
++                f"replan_interval must be in [1, {self.action_chunk_size}], "
++                f"got {self.replan_interval}"
++            )
+         self._server_metadata = meta
+ 
+         self.image_size: tuple = tuple(image_size)
+@@ -52,6 +62,7 @@ class ModelClient:
+         print(
+             f"*** policy_setup: {policy_setup}, unnorm_key: {unnorm_key}, "
+             f"action_chunk_size: {self.action_chunk_size}, "
++            f"replan_interval: {self.replan_interval}, "
+             f"server_meta: {meta} ***"
+         )
+ 
+@@ -81,6 +92,13 @@ class ModelClient:
+ 
          # Cached unnormalized chunk; refreshed every `action_chunk_size` steps.
          self.raw_actions: Optional[np.ndarray] = None
- 
++        self.inference_calls = 0
++        self.inference_seconds = 0.0
++
 +    @staticmethod
 +    def _trace_cache(**fields) -> None:
 +        if os.getenv("STARVLA_TRACE_ACTION_CACHE") == "1":
 +            print(json.dumps({"trace": "action_cache", **fields}), flush=True)
-+
+ 
      def _add_image_to_history(self, image: np.ndarray) -> None:
          self.image_history.append(image)
-         self.num_image_history = min(self.num_image_history + 1, self.horizon)
-@@ -128,7 +135,9 @@ class ModelClient:
+@@ -97,6 +115,18 @@ class ModelClient:
+         self.sticky_gripper_action = 0.0
+         self.previous_gripper_action = None
+         self.raw_actions = None
++        self.inference_calls = 0
++        self.inference_seconds = 0.0
++
++    def get_runtime_stats(self) -> dict:
++        mean_seconds = self.inference_seconds / self.inference_calls if self.inference_calls else 0.0
++        return {
++            "action_chunk_size": self.action_chunk_size,
++            "replan_interval": self.replan_interval,
++            "inference_calls": self.inference_calls,
++            "inference_seconds": self.inference_seconds,
++            "mean_inference_seconds": mean_seconds,
++        }
+ 
+     def step(self, example: dict, step: int = 0, **kwargs) -> dict:
+         """One env step.
+@@ -128,7 +158,9 @@ class ModelClient:
              example = {**example, "image": resized}
  
          # Refresh chunk if needed.
 -        if step % self.action_chunk_size == 0 or self.raw_actions is None:
-+        cache_index = step % self.action_chunk_size
++        cache_index = step % self.replan_interval
 +        refresh = cache_index == 0 or self.raw_actions is None
 +        if refresh:
              vla_input = {
                  "examples": [example],
                  "unnorm_key": self.unnorm_key,
-@@ -146,7 +155,14 @@ class ModelClient:
+@@ -136,7 +168,10 @@ class ModelClient:
+                 "use_ddim": self.use_ddim,
+                 "num_ddim_steps": self.num_ddim_steps,
+             }
++            inference_start = time.perf_counter()
+             response = self.client.predict_action(vla_input)
++            self.inference_seconds += time.perf_counter() - inference_start
++            self.inference_calls += 1
+             try:
+                 actions_batch = response["data"]["actions"]  # (B, T, D), unnormalized server-side
+             except KeyError:
+@@ -146,7 +181,14 @@ class ModelClient:
                  )
              self.raw_actions = np.asarray(actions_batch)[0]  # (T, D)
  
