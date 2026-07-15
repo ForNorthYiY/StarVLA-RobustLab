@@ -148,26 +148,36 @@ Known non-blocking warning: EGL context destruction reports a missing
 `libGLU.so.0` after evaluation has completed. Rendering, stepping, and MP4
 generation succeed; this remains an environment cleanup warning to resolve.
 
-## First training dataset
+## Complete upstream training resources
 
-Downloaded and verified on 2026-07-15:
+All datasets required by StarVLA's LIBERO `data_preparation.sh` were downloaded,
+pinned, and verified on 2026-07-15:
 
-- Repository: `IPEC-COMMUNITY/libero_goal_no_noops_1.0.0_lerobot`
-- Pinned revision: `222cf888ed360fad0a5f983748c1cc40743d43e7`
-- Storage path: `/data/dataset/yiyang/libero/libero_goal_no_noops_1.0.0_lerobot`
-- Disk usage: approximately 325 MiB
-- Data files: 428 Parquet episodes
-- Video files: 856 (two camera streams per episode)
-- Metadata files: 5, including the StarVLA `modality.json`
-- Frames: 52,042
-- Tasks: 10
-- `meta/info.json` SHA-256: `5e435c9b98d6515aea0f87bc6738a4fea9c67b3ce3a7765aad4801cd499dbc8e`
-- `meta/modality.json` SHA-256: `67438671ef5d74565d0b867d5a0f464fb0be6cf64aaa05a25de4451d0a413cdd`
+| Resource | Pinned revision | Episodes | Videos | Disk usage |
+|---|---|---:|---:|---:|
+| `libero_spatial_no_noops_1.0.0_lerobot` | `bf14d6258218d12c2e3c1a3b9922e163cdf6455d` | 432 | 864 | 356 MiB |
+| `libero_object_no_noops_1.0.0_lerobot` | `15657dac2ad1c01b4e94bf54ab0493b46a8d63f9` | 454 | 908 | 520 MiB |
+| `libero_goal_no_noops_1.0.0_lerobot` | `222cf888ed360fad0a5f983748c1cc40743d43e7` | 428 | 856 | 325 MiB |
+| `libero_10_no_noops_1.0.0_lerobot` | `e1a223d30b896c1613f270a2bfc63d382b3de7e1` | 379 | 758 | 609 MiB |
+| `StarVLA/LLaVA-OneVision-COCO` | `2915143c220362736339fc98271d7faab7722446` | n/a | 50,002 images | 4.9 GiB |
 
-The local StarVLA training path
-`playground/Datasets/LEROBOT_LIBERO_DATA` is a symbolic link to
-`/data/dataset/yiyang/libero`. Counts and byte sizes for `data`, `meta`, and
-`videos` match the staging copy, and no incomplete-download marker remains.
-The other LIBERO suites were intentionally not downloaded yet: the project
-will first validate a single-suite data and training pipeline, while `/data`
-has only about 195 GiB free.
+All four LIBERO datasets live below `/data/dataset/yiyang/libero/`. Each has
+the StarVLA `meta/modality.json`; its SHA-256 is
+`67438671ef5d74565d0b867d5a0f464fb0be6cf64aaa05a25de4451d0a413cdd`.
+
+The VLM co-training resource lives at
+`/data/dataset/yiyang/LLaVA-OneVision-COCO`. It contains the original
+`sharegpt4v_coco.zip`, the extracted `images/sharegpt4v_coco` directory, and
+`llava_jsons/sharegpt4v_coco.json`. Verified hashes:
+
+- zip: `9758b166eae5d59ca2ac0c9018b55a0c6971ec23b768abc951f4100781fa3eee`
+- JSON: `73e2f4360ea221bbf75f17943f93c2c76304e6c68150ec6cebff7fd6dbc1ffe1`
+
+StarVLA's two expected dataset paths under `playground/Datasets` are symbolic
+links to these `/data/dataset/yiyang` locations. The complete personal dataset
+root uses approximately 6.8 GiB. The already verified Qwen3-VL base model,
+StarVLA OFT checkpoint, LIBERO simulator source/assets, model environment, and
+LIBERO client environment complete the required upstream resource set.
+
+Optional alternative backbones/checkpoints and datasets for benchmarks outside
+the project's Qwen3-VL + QwenOFT + LIBERO scope are not part of this manifest.
