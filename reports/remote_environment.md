@@ -147,3 +147,27 @@ observations had shape `[256, 256, 3]`, the end-effector position had shape
 Known non-blocking warning: EGL context destruction reports a missing
 `libGLU.so.0` after evaluation has completed. Rendering, stepping, and MP4
 generation succeed; this remains an environment cleanup warning to resolve.
+
+## First training dataset
+
+Downloaded and verified on 2026-07-15:
+
+- Repository: `IPEC-COMMUNITY/libero_goal_no_noops_1.0.0_lerobot`
+- Pinned revision: `222cf888ed360fad0a5f983748c1cc40743d43e7`
+- Storage path: `/data/dataset/yiyang/libero/libero_goal_no_noops_1.0.0_lerobot`
+- Disk usage: approximately 325 MiB
+- Data files: 428 Parquet episodes
+- Video files: 856 (two camera streams per episode)
+- Metadata files: 5, including the StarVLA `modality.json`
+- Frames: 52,042
+- Tasks: 10
+- `meta/info.json` SHA-256: `5e435c9b98d6515aea0f87bc6738a4fea9c67b3ce3a7765aad4801cd499dbc8e`
+- `meta/modality.json` SHA-256: `67438671ef5d74565d0b867d5a0f464fb0be6cf64aaa05a25de4451d0a413cdd`
+
+The local StarVLA training path
+`playground/Datasets/LEROBOT_LIBERO_DATA` is a symbolic link to
+`/data/dataset/yiyang/libero`. Counts and byte sizes for `data`, `meta`, and
+`videos` match the staging copy, and no incomplete-download marker remains.
+The other LIBERO suites were intentionally not downloaded yet: the project
+will first validate a single-suite data and training pipeline, while `/data`
+has only about 195 GiB free.
