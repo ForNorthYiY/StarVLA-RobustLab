@@ -1,4 +1,5 @@
 third_party/starVLA/
+third_party/LIBERO/
 .venv/
 __pycache__/
 .pytest_cache/
@@ -8,4 +9,3 @@ checkpoints/
 runs/
 results/
 wandb/
-

@@ -45,3 +45,42 @@ PYTHONPATH=/data/yiyang/git/StarVLA-RobustLab/third_party/starVLA \
 ```
 
 Acceptance: passed. This result proves checkpoint loading, action-horizon compatibility, QwenOFT prediction, and server-side un-normalization. It does not prove LIBERO task performance.
+
+## 2026-07-15 — Minimum LIBERO client-server closed loop
+
+Purpose: verify the complete observation-to-action-to-environment path with the
+smallest real simulator run, not estimate benchmark performance.
+
+### Provenance
+
+- Local project commit before this record: `29f4551`
+- Remote project base commit: `0da7167` plus the smoke scripts copied from the local worktree
+- StarVLA commit: `3422b9f2387b6f682cf02802904a77b23ab13afd`
+- LIBERO commit: `8f1084e3132a39270c3a13ebe37270a43ece2a01`
+- Policy/base revisions: same as the preceding policy smoke test
+- Physical model GPU: 6
+- Model attention implementation: SDPA smoke overlay
+- Suite/task: `libero_goal`, task 0, "open the middle drawer of the cabinet"
+- Seed: 7
+- Scope: 1 task, 1 episode
+- Action chunk size from server handshake: 8
+- Normalization key: `franka`
+
+### Result
+
+- Completed episodes: 1
+- Successful episodes: 1
+- Observed smoke success rate: 1/1
+- Client log: `/data/yiyang/logs/starvla/libero_smoke_client.log`
+- Server log: `/data/yiyang/logs/starvla/libero_smoke_server.log`
+- Replay: `/data/yiyang/logs/starvla/libero_smoke_videos/rollout_open_the_middle_drawer_of_the_cabinet_episode0_success.mp4`
+- Replay size: approximately 97 KiB
+- Client dependency check: passed
+- GPU 6 memory after server shutdown: 1 MiB reported
+
+Acceptance: passed for the minimum closed-loop integration gate. This proves
+that LIBERO observations, WebSocket transport, model inference, server-side
+action un-normalization, client chunk handling, and `env.step` interoperate.
+The 1/1 result is **not** a benchmark estimate and must not be presented as a
+100% LIBERO score. The run ended with a non-fatal EGL cleanup warning after the
+metrics and replay were written.

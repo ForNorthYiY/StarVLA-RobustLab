@@ -111,3 +111,39 @@ Completed on 2026-07-15 using physical GPU 6 and the documented SDPA overlay.
 - Peak allocated GPU memory: approximately 8884.97 MiB
 
 This is a correctness smoke test, not a benchmark. The artificial images have no task-success meaning, the first request may include warm-up overhead, and SDPA latency must not be mixed with future FlashAttention results.
+
+## LIBERO client environment
+
+Prepared and verified on 2026-07-15:
+
+- LIBERO source: `/data/yiyang/git/LIBERO-8f1084e`
+- LIBERO commit: `8f1084e3132a39270c3a13ebe37270a43ece2a01`
+- Client environment: `/data/yiyang/miniconda3/envs/libero`
+- Python: 3.10.20
+- PyTorch: 2.6.0+cpu
+- MuJoCo: 3.2.3
+- robosuite: 1.4.0
+- NumPy: 1.24.4
+- Runtime config: `/data/yiyang/config/libero/config.yaml`
+- Dataset path in config: `/data/dataset/yiyang/LIBERO`
+
+The client deliberately uses CPU PyTorch. LIBERO needs PyTorch to deserialize
+its initial-state files, but model inference stays in the separate CUDA-enabled
+`starvla` environment.
+
+The server's `Meta` TUN interface temporarily returned DNS `SERVFAIL` while the
+physical interface remained healthy. `scripts/remote/dns_override/sitecustomize.py`
+was used as an opt-in, per-process resolver for dependency installation; no
+system DNS or other user's proxy process was modified.
+
+PyTorch 2.6 changed `torch.load` to default to `weights_only=True`. The trusted,
+repository-provided LIBERO initial-state files require the compatibility setting
+`TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD=1`. This must only be used for trusted files.
+
+The simulator-only smoke test passed for `libero_goal`, task 0: both camera
+observations had shape `[256, 256, 3]`, the end-effector position had shape
+`[3]`, all image values were finite, and one zero-action step completed.
+
+Known non-blocking warning: EGL context destruction reports a missing
+`libGLU.so.0` after evaluation has completed. Rendering, stepping, and MP4
+generation succeed; this remains an environment cleanup warning to resolve.

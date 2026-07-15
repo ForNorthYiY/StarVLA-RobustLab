@@ -1,0 +1,5 @@
+assets: /data/yiyang/git/LIBERO-8f1084e/libero/libero/assets
+bddl_files: /data/yiyang/git/LIBERO-8f1084e/libero/libero/bddl_files
+benchmark_root: /data/yiyang/git/LIBERO-8f1084e/libero/libero
+datasets: /data/dataset/yiyang/LIBERO
+init_states: /data/yiyang/git/LIBERO-8f1084e/libero/libero/init_files
