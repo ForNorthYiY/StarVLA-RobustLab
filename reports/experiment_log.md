@@ -84,3 +84,34 @@ action un-normalization, client chunk handling, and `env.step` interoperate.
 The 1/1 result is **not** a benchmark estimate and must not be presented as a
 100% LIBERO score. The run ended with a non-fatal EGL cleanup warning after the
 metrics and replay were written.
+
+## 2026-07-15 — Real action-chunk cache trace
+
+Purpose: observe the chunk scheduler in a real LIBERO episode instead of only
+inferring its behavior from source code.
+
+Tracing was enabled with `STARVLA_TRACE_ACTION_CACHE=1`. The optional patch is
+stored at `patches/starvla_action_cache_trace.patch`; normal behavior is
+unchanged when the variable is unset.
+
+### Observations
+
+- Policy-controlled client steps: 0 through 121 (122 steps)
+- Cache refresh steps: 0, 8, 16, ..., 120
+- Server inference requests: 16
+- Cache hits: 106
+- Every server output had normalized shape `[1, 8, 7]`
+- Every server output had unnormalized shape `[1, 8, 7]`
+- Un-normalization key: `franka`
+- Episode result: success
+- Client trace: `/data/yiyang/logs/starvla/cache_trace_client.log`
+- Server trace: `/data/yiyang/logs/starvla/cache_trace_server.log`
+
+The measured request count matches `ceil(122 / 8) = 16`. The first ten
+object-settling actions in `eval_libero.py` bypass `ModelClient`, so they do not
+appear in the policy cache trace.
+
+This trace demonstrates the latency tradeoff precisely: the environment still
+executes one 7-D action per step, but the expensive VLA forward pass runs only
+once per eight policy-controlled steps. The seven intervening actions are
+open-loop cache reads from the previously predicted chunk.

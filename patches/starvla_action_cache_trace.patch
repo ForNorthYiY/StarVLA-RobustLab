@@ -1,0 +1,84 @@
+diff --git a/deployment/model_server/policy_wrapper.py b/deployment/model_server/policy_wrapper.py
+index 21d45f3..908d0d0 100644
+--- a/deployment/model_server/policy_wrapper.py
++++ b/deployment/model_server/policy_wrapper.py
+@@ -21,7 +21,9 @@ Exposed API:
+ 
+ from __future__ import annotations
+ 
++import json
+ import logging
++import os
+ from typing import Any, Dict, List, Optional
+ 
+ import numpy as np
+@@ -159,4 +161,17 @@ class PolicyServerWrapper:
+             [proc.unapply_actions(normalized[b]) for b in range(normalized.shape[0])],
+             axis=0,
+         )
++        if os.getenv("STARVLA_TRACE_ACTION_CACHE") == "1":
++            logging.info(
++                "%s",
++                json.dumps(
++                    {
++                        "trace": "policy_inference",
++                        "batch_size": len(examples),
++                        "normalized_shape": list(normalized.shape),
++                        "unnormalized_shape": list(unnorm.shape),
++                        "unnorm_key": effective_key,
++                    }
++                ),
++            )
+         return {"actions": unnorm}
+diff --git a/examples/LIBERO/eval_files/model2libero_interface.py b/examples/LIBERO/eval_files/model2libero_interface.py
+index ce7d93e..e490019 100644
+--- a/examples/LIBERO/eval_files/model2libero_interface.py
++++ b/examples/LIBERO/eval_files/model2libero_interface.py
+@@ -15,6 +15,8 @@ ensembling, gripper sticky logic, and chunk-cache scheduling.
+ """
+ 
+ from collections import deque
++import json
++import os
+ from typing import Optional, Sequence
+ 
+ import matplotlib.pyplot as plt
+@@ -82,6 +84,11 @@ class ModelClient:
+         # Cached unnormalized chunk; refreshed every `action_chunk_size` steps.
+         self.raw_actions: Optional[np.ndarray] = None
+ 
++    @staticmethod
++    def _trace_cache(**fields) -> None:
++        if os.getenv("STARVLA_TRACE_ACTION_CACHE") == "1":
++            print(json.dumps({"trace": "action_cache", **fields}), flush=True)
++
+     def _add_image_to_history(self, image: np.ndarray) -> None:
+         self.image_history.append(image)
+         self.num_image_history = min(self.num_image_history + 1, self.horizon)
+@@ -128,7 +135,9 @@ class ModelClient:
+             example = {**example, "image": resized}
+ 
+         # Refresh chunk if needed.
+-        if step % self.action_chunk_size == 0 or self.raw_actions is None:
++        cache_index = step % self.action_chunk_size
++        refresh = cache_index == 0 or self.raw_actions is None
++        if refresh:
+             vla_input = {
+                 "examples": [example],
+                 "unnorm_key": self.unnorm_key,
+@@ -146,7 +155,14 @@ class ModelClient:
+                 )
+             self.raw_actions = np.asarray(actions_batch)[0]  # (T, D)
+ 
+-        raw_actions = self.raw_actions[step % self.action_chunk_size][None]
++        self._trace_cache(
++            step=step,
++            event="refresh" if refresh else "cache_hit",
++            cache_index=cache_index,
++            chunk_shape=list(self.raw_actions.shape),
++        )
++
++        raw_actions = self.raw_actions[cache_index][None]
+         raw_action = {
+             "world_vector": np.array(raw_actions[0, :3]),
+             "rotation_delta": np.array(raw_actions[0, 3:6]),
