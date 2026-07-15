@@ -94,3 +94,20 @@ Before starting LIBERO:
 5. one fake observation returns finite actions with shape `[1, 8, 7]`;
 6. peak GPU memory and inference latency are recorded.
 
+## First policy-wrapper smoke result
+
+Completed on 2026-07-15 using physical GPU 6 and the documented SDPA overlay.
+
+- Policy weight SHA-256: `80d7a2ab0b033ce49d84070eb1124a2f9718e5b1f0ef8e2db6e4c44478b05df9`
+- Base shard 1 SHA-256: `30a01a0556622645a3cce87b655bbbbbc1f170c196099f1b666c93202c3339a9`
+- Base shard 2 SHA-256: `046296a2a387efb43b0c997d5833c789604d168834f6e0d3064bf7bb13d002a6`
+- Input: batch size 1, two constant 224 × 224 uint8 RGB images, one language instruction
+- Output shape: `[1, 8, 7]`
+- Output dtype: float32 after server-side un-normalization
+- All output values finite: yes
+- Observed action range: approximately `[-0.21331, 1.00282]`
+- Model/wrapper load time: approximately 11.33 seconds
+- First measured inference time: approximately 1.10 seconds
+- Peak allocated GPU memory: approximately 8884.97 MiB
+
+This is a correctness smoke test, not a benchmark. The artificial images have no task-success meaning, the first request may include warm-up overhead, and SDPA latency must not be mixed with future FlashAttention results.
